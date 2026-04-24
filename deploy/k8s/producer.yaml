@@ -1,0 +1,23 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: signal-producer
+  namespace: pricing
+spec:
+  replicas: 1
+  selector:
+    matchLabels: { app: signal-producer }
+  template:
+    metadata:
+      labels: { app: signal-producer }
+    spec:
+      containers:
+        - name: producer
+          image: <REGISTRY>/mock-pricing-stream:0.1.0
+          command: ["python", "-m", "app.streaming.producer"]
+          env:
+            - { name: RABBIT_URL,        value: "amqp://guest:guest@rabbitmq:5672/" }
+            - { name: PRODUCER_INTERVAL, value: "1.0" }
+          resources:
+            requests: { cpu: "50m",  memory: "64Mi" }
+            limits:   { cpu: "200m", memory: "128Mi" }

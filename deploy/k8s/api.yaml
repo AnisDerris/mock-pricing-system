@@ -1,0 +1,42 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: pricing-api
+  namespace: pricing
+spec:
+  replicas: 2
+  selector:
+    matchLabels: { app: pricing-api }
+  template:
+    metadata:
+      labels: { app: pricing-api }
+    spec:
+      containers:
+        - name: api
+          image: <REGISTRY>/mock-pricing-api:0.1.0
+          ports: [{ containerPort: 8000 }]
+          env:
+            - { name: REDIS_URL, value: "redis://redis:6379/0" }
+            - { name: LOG_LEVEL, value: "INFO" }
+          readinessProbe:
+            httpGet: { path: /health, port: 8000 }
+            initialDelaySeconds: 3
+            periodSeconds: 10
+          livenessProbe:
+            httpGet: { path: /health, port: 8000 }
+            initialDelaySeconds: 10
+            periodSeconds: 20
+          resources:
+            requests: { cpu: "100m", memory: "128Mi" }
+            limits:   { cpu: "500m", memory: "256Mi" }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: pricing-api
+  namespace: pricing
+spec:
+  selector: { app: pricing-api }
+  ports:
+    - port: 8000
+      targetPort: 8000

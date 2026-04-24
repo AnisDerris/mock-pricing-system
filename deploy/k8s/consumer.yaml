@@ -1,0 +1,23 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: signal-consumer
+  namespace: pricing
+spec:
+  replicas: 1
+  selector:
+    matchLabels: { app: signal-consumer }
+  template:
+    metadata:
+      labels: { app: signal-consumer }
+    spec:
+      containers:
+        - name: consumer
+          image: <REGISTRY>/mock-pricing-stream:0.1.0
+          command: ["python", "-m", "app.streaming.consumer"]
+          env:
+            - { name: REDIS_URL,  value: "redis://redis:6379/0" }
+            - { name: RABBIT_URL, value: "amqp://guest:guest@rabbitmq:5672/" }
+          resources:
+            requests: { cpu: "50m",  memory: "64Mi" }
+            limits:   { cpu: "200m", memory: "128Mi" }

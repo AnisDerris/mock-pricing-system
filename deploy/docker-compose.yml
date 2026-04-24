@@ -1,0 +1,58 @@
+name: mock-pricing
+
+services:
+  redis:
+    image: redis:7-alpine
+    ports: ["6379:6379"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      retries: 10
+
+  rabbitmq:
+    image: rabbitmq:3.13-management
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 10s
+      retries: 10
+
+  api:
+    build:
+      context: ..
+      dockerfile: deploy/docker/Dockerfile.api
+    environment:
+      REDIS_URL: redis://redis:6379/0
+      LOG_LEVEL: INFO
+    ports: ["8000:8000"]
+    depends_on:
+      redis:
+        condition: service_healthy
+
+  consumer:
+    build:
+      context: ..
+      dockerfile: deploy/docker/Dockerfile.streaming
+    command: ["python", "-m", "app.streaming.consumer"]
+    environment:
+      REDIS_URL: redis://redis:6379/0
+      RABBIT_URL: amqp://guest:guest@rabbitmq:5672/
+    depends_on:
+      redis:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+
+  producer:
+    build:
+      context: ..
+      dockerfile: deploy/docker/Dockerfile.streaming
+    command: ["python", "-m", "app.streaming.producer"]
+    environment:
+      RABBIT_URL: amqp://guest:guest@rabbitmq:5672/
+      PRODUCER_INTERVAL: "0.5"
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
