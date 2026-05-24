@@ -1,10 +1,9 @@
-"""Thin Redis wrapper for zone demand state."""
+"""Redis wrapper pour l'état temps réel du food delivery."""
 from __future__ import annotations
 
 import redis
 
 from .config import settings
-
 
 _client: redis.Redis | None = None
 
@@ -16,21 +15,65 @@ def client() -> redis.Redis:
     return _client
 
 
-def _key(zone: str, kind: str) -> str:
-    return f"zone:{zone}:{kind}"
+# ── État de zone (commandes + livreurs + trafic) ────────────────────────────
+
+def get_zone_state(zone: str) -> dict:
+    r = client()
+    return {
+        "active_orders": int(r.get(f"zone:{zone}:orders") or 0),
+        "available_drivers": int(r.get(f"zone:{zone}:drivers") or 3),
+        "traffic_factor": float(r.get(f"zone:{zone}:traffic") or 1.0),
+    }
 
 
-def incr_signal(zone: str, kind: str, amount: int = 1) -> int:
-    """Increment ride/driver counter for a zone (TTL-bounded sliding window)."""
-    k = _key(zone, kind)
+# ── État restaurant ──────────────────────────────────────────────────────────
+
+def get_restaurant_state(restaurant_id: str) -> dict:
+    r = client()
+    return {
+        "load_factor": float(r.get(f"restaurant:{restaurant_id}:load") or 0.3),
+        "prep_time_minutes": float(r.get(f"restaurant:{restaurant_id}:prep_time") or 15.0),
+        "is_open": (r.get(f"restaurant:{restaurant_id}:open") or "1") == "1",
+    }
+
+
+# ── Écriture (appelée par les consumers) ────────────────────────────────────
+
+def update_zone_orders(zone: str, delta: int, ttl: int | None = None) -> None:
+    ttl = ttl or settings.demand_ttl_seconds
+    key = f"zone:{zone}:orders"
     pipe = client().pipeline()
-    pipe.incrby(k, amount)
-    pipe.expire(k, settings.demand_ttl_seconds)
-    new_value, _ = pipe.execute()
-    return int(new_value)
+    pipe.incrby(key, delta)
+    pipe.expire(key, ttl)
+    val, _ = pipe.execute()
+    if int(val) < 0:
+        client().set(key, 0, ex=ttl)
 
 
-def get_counts(zone: str) -> tuple[int, int]:
-    rides = int(client().get(_key(zone, "rides")) or 0)
-    drivers = int(client().get(_key(zone, "drivers")) or 0)
-    return rides, drivers
+def update_zone_drivers(zone: str, delta: int, ttl: int | None = None) -> None:
+    ttl = ttl or settings.demand_ttl_seconds
+    key = f"zone:{zone}:drivers"
+    pipe = client().pipeline()
+    pipe.incrby(key, delta)
+    pipe.expire(key, ttl)
+    val, _ = pipe.execute()
+    if int(val) < 0:
+        client().set(key, 0, ex=ttl)
+
+
+def set_traffic(zone: str, traffic_factor: float, ttl: int = 120) -> None:
+    client().set(f"zone:{zone}:traffic", round(traffic_factor, 3), ex=ttl)
+
+
+def set_restaurant_load(
+    restaurant_id: str, load_factor: float, prep_time: float, ttl: int = 180
+) -> None:
+    r = client()
+    r.set(f"restaurant:{restaurant_id}:load", round(load_factor, 3), ex=ttl)
+    r.set(f"restaurant:{restaurant_id}:prep_time", round(prep_time, 1), ex=ttl)
+
+
+def set_restaurant_status(restaurant_id: str, is_open: bool, ttl: int = 300) -> None:
+    client().set(
+        f"restaurant:{restaurant_id}:open", "1" if is_open else "0", ex=ttl
+    )

@@ -1,0 +1,65 @@
+name: dev-ci
+
+# Déclenché sur chaque push vers la branche dev
+on:
+  push:
+    branches: [dev]
+
+jobs:
+  # ──────────────────────────────────────────────────────────────────────────
+  # 1. Tests mock (pas de dépendances externes)
+  # ──────────────────────────────────────────────────────────────────────────
+  test:
+    name: Mock Tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run mock tests
+        run: pytest tests/ -v --tb=short
+
+  # ──────────────────────────────────────────────────────────────────────────
+  # 2. Déploiement sur le serveur distant (après tests verts)
+  # ──────────────────────────────────────────────────────────────────────────
+  deploy:
+    name: Deploy to Remote
+    needs: test
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.REMOTE_HOST }}
+          username: ${{ secrets.REMOTE_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          port: ${{ secrets.REMOTE_PORT || 22 }}
+          script: |
+            set -e
+            cd ${{ secrets.REMOTE_PATH }}
+
+            echo "==> Pulling latest code from dev..."
+            git fetch origin dev
+            git checkout dev
+            git pull origin dev
+
+            echo "==> Rebuilding with docker compose..."
+            cd deploy
+            docker compose pull --quiet
+            docker compose up -d --build --remove-orphans
+
+            echo "==> Cleaning unused images..."
+            docker image prune -f
+
+            echo "==> Deploy done."
