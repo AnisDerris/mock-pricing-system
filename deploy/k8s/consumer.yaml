@@ -1,23 +1,101 @@
+# 4 consumers spécialisés — un Deployment par CONSUMER_TYPE.
+# Ils partagent la même image mais scalent indépendamment.
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: signal-consumer
+  name: consumer-orders
   namespace: pricing
 spec:
   replicas: 1
   selector:
-    matchLabels: { app: signal-consumer }
+    matchLabels: { app: consumer-orders }
   template:
     metadata:
-      labels: { app: signal-consumer }
+      labels: { app: consumer-orders }
     spec:
       containers:
         - name: consumer
           image: <REGISTRY>/mock-pricing-stream:0.1.0
           command: ["python", "-m", "app.streaming.consumer"]
           env:
-            - { name: REDIS_URL,  value: "redis://redis:6379/0" }
-            - { name: RABBIT_URL, value: "amqp://guest:guest@rabbitmq:5672/" }
+            - { name: CONSUMER_TYPE,   value: "orders" }
+            - { name: KAFKA_BOOTSTRAP, value: "kafka:9092" }
+            - { name: REDIS_URL,       value: "redis://redis:6379/0" }
+          resources:
+            requests: { cpu: "50m",  memory: "64Mi" }
+            limits:   { cpu: "200m", memory: "128Mi" }
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: consumer-drivers
+  namespace: pricing
+spec:
+  replicas: 1
+  selector:
+    matchLabels: { app: consumer-drivers }
+  template:
+    metadata:
+      labels: { app: consumer-drivers }
+    spec:
+      containers:
+        - name: consumer
+          image: <REGISTRY>/mock-pricing-stream:0.1.0
+          command: ["python", "-m", "app.streaming.consumer"]
+          env:
+            - { name: CONSUMER_TYPE,   value: "drivers" }
+            - { name: KAFKA_BOOTSTRAP, value: "kafka:9092" }
+            - { name: REDIS_URL,       value: "redis://redis:6379/0" }
+          resources:
+            requests: { cpu: "50m",  memory: "64Mi" }
+            limits:   { cpu: "200m", memory: "128Mi" }
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: consumer-restaurants
+  namespace: pricing
+spec:
+  replicas: 1
+  selector:
+    matchLabels: { app: consumer-restaurants }
+  template:
+    metadata:
+      labels: { app: consumer-restaurants }
+    spec:
+      containers:
+        - name: consumer
+          image: <REGISTRY>/mock-pricing-stream:0.1.0
+          command: ["python", "-m", "app.streaming.consumer"]
+          env:
+            - { name: CONSUMER_TYPE,   value: "restaurants" }
+            - { name: KAFKA_BOOTSTRAP, value: "kafka:9092" }
+            - { name: REDIS_URL,       value: "redis://redis:6379/0" }
+          resources:
+            requests: { cpu: "50m",  memory: "64Mi" }
+            limits:   { cpu: "200m", memory: "128Mi" }
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: consumer-traffic
+  namespace: pricing
+spec:
+  replicas: 1
+  selector:
+    matchLabels: { app: consumer-traffic }
+  template:
+    metadata:
+      labels: { app: consumer-traffic }
+    spec:
+      containers:
+        - name: consumer
+          image: <REGISTRY>/mock-pricing-stream:0.1.0
+          command: ["python", "-m", "app.streaming.consumer"]
+          env:
+            - { name: CONSUMER_TYPE,   value: "traffic" }
+            - { name: KAFKA_BOOTSTRAP, value: "kafka:9092" }
+            - { name: REDIS_URL,       value: "redis://redis:6379/0" }
           resources:
             requests: { cpu: "50m",  memory: "64Mi" }
             limits:   { cpu: "200m", memory: "128Mi" }

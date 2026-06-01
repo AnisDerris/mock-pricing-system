@@ -14,7 +14,9 @@ asyncpg>=0.29.0
 redis>=5.0.0
 
 # ── Kafka ────────────────────────────────────────────────────────────────────
-kafka-python>=2.0.2
+# Maintained fork of kafka-python — required for Python 3.12 compatibility
+# (kafka-python 2.0.2 fails to import on 3.12). Drop-in: same `kafka` namespace.
+kafka-python-ng>=2.2.3
 
 # ── Dev / tests ──────────────────────────────────────────────────────────────
 pytest>=8.2.0

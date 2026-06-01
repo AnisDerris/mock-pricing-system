@@ -16,8 +16,10 @@ spec:
           image: <REGISTRY>/mock-pricing-api:0.1.0
           ports: [{ containerPort: 8000 }]
           env:
-            - { name: REDIS_URL, value: "redis://redis:6379/0" }
-            - { name: LOG_LEVEL, value: "INFO" }
+            - { name: REDIS_URL,       value: "redis://redis:6379/0" }
+            - { name: DATABASE_URL,    value: "postgresql+asyncpg://pricing:pricing@postgres:5432/foodpricing" }
+            - { name: KAFKA_BOOTSTRAP, value: "kafka:9092" }
+            - { name: LOG_LEVEL,       value: "INFO" }
           readinessProbe:
             httpGet: { path: /health, port: 8000 }
             initialDelaySeconds: 3

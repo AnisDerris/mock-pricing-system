@@ -16,7 +16,7 @@ spec:
           image: <REGISTRY>/mock-pricing-stream:0.1.0
           command: ["python", "-m", "app.streaming.producer"]
           env:
-            - { name: RABBIT_URL,        value: "amqp://guest:guest@rabbitmq:5672/" }
+            - { name: KAFKA_BOOTSTRAP,   value: "kafka:9092" }
             - { name: PRODUCER_INTERVAL, value: "1.0" }
           resources:
             requests: { cpu: "50m",  memory: "64Mi" }
