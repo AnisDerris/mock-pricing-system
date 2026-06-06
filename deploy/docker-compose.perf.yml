@@ -1,0 +1,5 @@
+# Override de performance : API multi-workers (scalabilite horizontale ENF-02).
+# Usage : docker compose -f docker-compose.yml -f docker-compose.perf.yml up -d api
+services:
+  api:
+    command: ["uvicorn", "app.api.main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "4"]
