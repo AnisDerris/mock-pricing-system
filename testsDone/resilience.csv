@@ -1,0 +1,13 @@
+phase,t_s,lag,api_code
+nominal,0,1,200
+panne,3,1003,200
+panne,6,1004,200
+panne,9,1007,200
+panne,12,1009,200
+panne,15,1011,200
+recuperation,17,1013,200
+recuperation,19,2,200
+recuperation,21,1,200
+recuperation,23,2,200
+recuperation,25,2,200
+recuperation,27,0,200
